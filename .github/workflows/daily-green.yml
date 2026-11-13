@@ -1,11 +1,8 @@
 name: daily-green
 
-# 每天往默认分支提交一次，让 GitHub 贡献图当天变绿。
-# 时间用 UTC：14:23 UTC ≈ 美东 09:23(EST) / 10:23(EDT)，避开整点高峰。
-# 绿点按 UTC 日期算，只要每天 UTC 日历日有一次提交即可。
+# 每日绿点已于 2026-11-13 转由 Muse 侧排期执行（连接器直接提交到默认分支）。
+# 本工作流只保留手动触发作为备用，自动排期已停用，避免一天多次提交。
 on:
-  schedule:
-    - cron: '23 14 * * *'
   workflow_dispatch:
 
 permissions:
