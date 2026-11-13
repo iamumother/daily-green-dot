@@ -1,0 +1,30 @@
+name: daily-green
+
+# 每天往默认分支提交一次，让 GitHub 贡献图当天变绿。
+# 时间用 UTC：14:23 UTC ≈ 美东 09:23(EST) / 10:23(EDT)，避开整点高峰。
+# 绿点按 UTC 日期算，只要每天 UTC 日历日有一次提交即可。
+on:
+  schedule:
+    - cron: '23 14 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  daily-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Append daily log and commit
+        run: |
+          # 提交署名：账号 iamumother 的 noreply 邮箱，GitHub 会把提交算到该账号。
+          git config user.name "iamumother"
+          git config user.email "355653176+iamumother@users.noreply.github.com"
+          mkdir -p logs
+          TODAY=$(date -u +%F)
+          echo "- $TODAY daily check-in" >> "logs/$(date -u +%Y).md"
+          git add .
+          git commit -m "daily: $TODAY" || echo "nothing to commit"
+          git push
