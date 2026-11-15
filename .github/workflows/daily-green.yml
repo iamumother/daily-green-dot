@@ -1,8 +1,5 @@
-name: daily-green
+name: Daily Green
 
-# 每日绿点规则（2026-11-15 定）：全天多次检查，按日期哈希定两个随机目标时刻：
-# 上午 08:00-12:00（美东）一次、下午 14:00-18:00（美东）一次；21:00（美东）后兜底补齐当天缺的。
-# 全程 GitHub Actions 自动执行，不需要人工审批。
 on:
   schedule:
     - cron: '23,53 0,1,2,12,13,14,15,16,17,18,19,20,21,22,23 * * *'
@@ -11,64 +8,65 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: daily-green
+  cancel-in-progress: false
+
 jobs:
-  daily-commit:
+  check-in:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Decide and append daily log
+      - name: Decide and commit due check-ins
         run: |
-          git config user.name "iamumother"
-          git config user.email "355653176+iamumother@users.noreply.github.com"
-          python3 - <<'PYEOF'
-          import hashlib, os
+          python3 - <<'EOF'
+          import hashlib, os, subprocess
           from datetime import datetime
           from zoneinfo import ZoneInfo
 
-          now = datetime.now(ZoneInfo("America/New_York"))
+          tz = ZoneInfo("America/New_York")
+          now = datetime.now(tz)
           date_str = now.strftime("%Y-%m-%d")
           year = now.strftime("%Y")
           now_min = now.hour * 60 + now.minute
-
-          def target(seed, start, span):
-              h = int(hashlib.sha256((date_str + "-" + seed).encode()).hexdigest(), 16)
-              return start + h % span
-
-          am_target = target("am", 8 * 60, 210)
-          pm_target = target("pm", 14 * 60, 210)
-
-          path = "logs/" + year + ".md"
+          path = f"logs/{year}.md"
           os.makedirs("logs", exist_ok=True)
-          content = ""
+          existing = ""
           if os.path.exists(path):
-              content = open(path).read()
-          am_line = "- " + date_str + " daily check-in (am)"
-          pm_line = "- " + date_str + " daily check-in (pm)"
-          has_am = am_line in content
-          has_pm = pm_line in content
+              existing = open(path).read()
 
-          to_add = []
-          if not has_am and now_min >= am_target:
-              to_add.append(am_line)
-          if not has_pm and now_min >= pm_target:
-              to_add.append(pm_line)
-          if now_min >= 21 * 60:
-              if not has_am and am_line not in to_add:
-                  to_add.append(am_line)
-              if not has_pm and pm_line not in to_add:
-                  to_add.append(pm_line)
+          COUNT = 10
+          targets = []
+          for i in range(COUNT):
+              h = int(hashlib.sha256(f"{date_str}-t{i+1}".encode()).hexdigest(), 16)
+              targets.append(480 + h % 810)
+          targets.sort()
 
-          if to_add:
+          def sh(*args):
+              subprocess.run(args, check=True)
+
+          sh("git", "config", "user.name", "iamumother")
+          sh("git", "config", "user.email", "355653176+iamumother@users.noreply.github.com")
+
+          made = 0
+          for i, t in enumerate(targets, 1):
+              label = f"t{i:02d}"
+              line = f"- {date_str} daily check-in ({label})"
+              if line in existing:
+                  continue
+              if now_min < t and now_min < 1290:
+                  continue
               with open(path, "a") as f:
-                  for line in to_add:
-                      f.write(line + "\n")
-              print("ADDED:", to_add)
-          else:
-              print("skip: now_min=%d am_target=%d pm_target=%d has_am=%s has_pm=%s" % (now_min, am_target, pm_target, has_am, has_pm))
-          PYEOF
+                  f.write(line + "\n")
+              existing += line + "\n"
+              sh("git", "add", path)
+              sh("git", "commit", "-m", f"daily: {date_str} ({label})")
+              made += 1
+              print(f"committed {label} (target {t//60:02d}:{t%60:02d})")
 
-      - name: Commit if changed
-        run: |
-          git add .
-          git diff --cached --quiet && echo "nothing to commit" || { git commit -m "daily: $(TZ=America/New_York date +%F)"; git push; }
+          if made:
+              sh("git", "push")
+          print(f"targets today: {[f'{t//60:02d}:{t%60:02d}' for t in targets]}; committed {made}")
+          EOF
