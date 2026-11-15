@@ -1,8 +1,10 @@
 name: daily-green
 
-# 每日绿点已于 2026-11-13 转由 Muse 侧排期执行（连接器直接提交到默认分支）。
-# 本工作流只保留手动触发作为备用，自动排期已停用，避免一天多次提交。
+# 每日绿点由 GitHub Actions 自动排期执行（2026-11-15 改回：Muse 侧连接器写仓每次都要人工审批，无法全自动）。
+# Muse 侧排期已停用，避免一天多次提交。手动触发保留备用。
 on:
+  schedule:
+    - cron: '23 14 * * *'
   workflow_dispatch:
 
 permissions:
