@@ -41,7 +41,7 @@ jobs:
           targets = []
           for i in range(COUNT):
               h = int(hashlib.sha256(f"{date_str}-t{i+1}".encode()).hexdigest(), 16)
-              targets.append(480 + h % 810)
+              targets.append(540 + h % 510)
           targets.sort()
 
           def sh(*args):
